@@ -1,0 +1,4 @@
+# Testes de integração de agents
+# Exemplos:
+# - agent-selection.spec.ts
+# - agent-switching.spec.ts
