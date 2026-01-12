@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChatInput } from "./ChatInput";
 import { MessageList, type Message } from "./MessageList";
 
-export function ChatSection() {
+interface ChatSectionProps {
+  onMessageSent?: (hasMessages: boolean) => void;
+}
+
+export function ChatSection({ onMessageSent }: ChatSectionProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Notificar quando houver mudanças nas mensagens
+  useEffect(() => {
+    onMessageSent?.(messages.length > 0);
+  }, [messages.length, onMessageSent]);
 
   const handleSendMessage = async (message: string) => {
     // TODO: Implementar lógica de envio de mensagem
