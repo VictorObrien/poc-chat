@@ -29,9 +29,14 @@ export function ChatSection() {
     }
   };
 
-  const handleEdit = (messageId: string) => {
-    // TODO: Implementar lógica de edição
-    console.log("Editar mensagem:", messageId);
+  const handleEdit = (messageId: string, newMessage: string) => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === messageId
+          ? { ...msg, content: newMessage, timestamp: new Date() }
+          : msg
+      )
+    );
   };
 
   const handleCopy = (messageId: string) => {

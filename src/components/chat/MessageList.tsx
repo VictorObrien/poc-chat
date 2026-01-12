@@ -11,7 +11,7 @@ export interface Message {
 interface MessageListProps {
   messages: Message[];
   onResend?: (messageId: string) => void;
-  onEdit?: (messageId: string) => void;
+  onEdit?: (messageId: string, newMessage: string) => void;
   onCopy?: (messageId: string) => void;
 }
 
@@ -33,7 +33,7 @@ export function MessageList({
           message={message.content}
           timestamp={message.timestamp}
           onResend={() => onResend?.(message.id)}
-          onEdit={() => onEdit?.(message.id)}
+          onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
           onCopy={() => onCopy?.(message.id)}
         />
       ))}
