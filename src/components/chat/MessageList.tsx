@@ -1,11 +1,13 @@
 "use client";
 
 import { ChatBubble } from "./ChatBubble";
+import { AssistantMessage } from "./AssistantMessage";
 
 export interface Message {
   id: string;
   content: string;
   timestamp: Date;
+  role?: "user" | "assistant";
 }
 
 interface MessageListProps {
@@ -27,16 +29,31 @@ export function MessageList({
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      {messages.map((message) => (
-        <ChatBubble
-          key={message.id}
-          message={message.content}
-          timestamp={message.timestamp}
-          onResend={() => onResend?.(message.id)}
-          onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
-          onCopy={() => onCopy?.(message.id)}
-        />
-      ))}
+      {messages.map((message) => {
+        // Renderizar mensagens do assistente de forma diferente
+        if (message.role === "assistant") {
+          return (
+            <AssistantMessage
+              key={message.id}
+              message={message.content}
+              timestamp={message.timestamp}
+              onCopy={() => onCopy?.(message.id)}
+            />
+          );
+        }
+
+        // Mensagens do usuário usam ChatBubble com todas as opções
+        return (
+          <ChatBubble
+            key={message.id}
+            message={message.content}
+            timestamp={message.timestamp}
+            onResend={() => onResend?.(message.id)}
+            onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
+            onCopy={() => onCopy?.(message.id)}
+          />
+        );
+      })}
     </div>
   );
 }
