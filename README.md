@@ -38,19 +38,25 @@ Projeto de prova de conceito (POC) para um chat de agents de IA integrado com a 
 poc-chat/
 ├── src/
 │   ├── app/                    # Next.js App Router
+│   │   ├── api/               # API Routes
+│   │   │   └── chat/          # Rota de chat (/api/chat)
 │   │   ├── layout.tsx         # Layout raiz
 │   │   ├── page.tsx           # Página inicial
 │   │   └── globals.css        # Estilos globais
 │   ├── components/            # Componentes React
+│   │   ├── chat/             # Componentes de chat
 │   │   └── ui/               # Componentes shadcn/ui
 │   ├── lib/                   # Utilitários e helpers
+│   │   ├── api/              # Clientes de API
+│   │   │   └── openrouter.ts # Serviço OpenRouter
+│   │   ├── types/            # Tipos TypeScript
+│   │   │   └── openrouter.ts # Tipos da API OpenRouter
 │   │   └── utils.ts          # Funções utilitárias (cn, etc.)
 │   ├── providers/             # React Providers
 │   │   └── QueryProvider.tsx # TanStack Query Provider
-│   └── hooks/                 # Custom hooks (a criar)
-│   └── stores/                # Zustand stores (a criar)
-│   └── schemas/               # Zod schemas (a criar)
-│   └── api/                   # Clientes de API (a criar)
+│   └── hooks/                 # Custom hooks
+│       ├── useChat.ts        # Hook para gerenciar chat
+│       └── useChatAPI.ts     # Hook para integração com API
 │
 ├── tests/                      # Testes de integração e E2E
 │   ├── integration/           # Testes de integração
@@ -115,6 +121,11 @@ cp .env.example .env.local
 # Edite .env.local com suas chaves de API
 ```
 
+   **Variáveis de ambiente necessárias:**
+   - `OPENROUTER_API_KEY`: Sua chave de API do OpenRouter (obtenha em https://openrouter.ai/keys)
+   - `NEXT_PUBLIC_APP_URL` (opcional): URL da aplicação para referência na API
+   - `NEXT_PUBLIC_APP_NAME` (opcional): Nome da aplicação para referência na API
+
 4. Inicie o servidor de desenvolvimento:
 ```bash
 pnpm dev
@@ -173,13 +184,59 @@ O projeto segue uma arquitetura escalável com:
 - **Estado global**: Zustand para estado compartilhado
 - **Testes focados**: Apenas testes de integração e E2E para validar fluxos completos
 
+## 🔌 Integração com OpenRouter
+
+O projeto está integrado com a API do OpenRouter para acesso a múltiplos modelos de IA usando o **Vercel AI SDK**. A integração foi implementada seguindo as melhores práticas:
+
+### Arquitetura da Integração
+
+1. **API Route** (`/api/chat`): Rota do Next.js que atua como proxy seguro, mantendo a API key no servidor
+2. **Serviço OpenRouter** (`src/lib/api/openrouter.ts`): Cliente usando Vercel AI SDK com o provider `@openrouter/ai-sdk-provider`
+3. **Tipos TypeScript** (`src/lib/types/openrouter.ts`): Tipos completos para todas as respostas da API
+4. **Hook useChatAPI** (`src/hooks/useChatAPI.ts`): Hook React que utiliza TanStack Query para gerenciar chamadas à API
+
+### SDK Utilizado
+
+- **Vercel AI SDK** (`ai@6.0.28`): SDK oficial da Vercel para integração com modelos de IA
+- **OpenRouter Provider** (`@openrouter/ai-sdk-provider@1.5.4`): Provider oficial do OpenRouter para o Vercel AI SDK
+
+### Como Funciona
+
+1. O usuário digita uma mensagem no `ChatInput`
+2. A mensagem é enviada para `/api/chat` via `useChatAPI`
+3. A API route valida e usa o Vercel AI SDK com o provider OpenRouter para gerar a resposta
+4. A resposta é processada e exibida no chat
+5. O histórico de conversa é mantido automaticamente
+
+### Vantagens do Vercel AI SDK
+
+- **Abstração simplificada**: Interface unificada para diferentes provedores de IA
+- **Type safety**: Tipos TypeScript completos e seguros
+- **Suporte a streaming**: Preparado para implementar streaming de respostas no futuro
+- **Integração nativa**: Integração direta com React e Next.js
+
+### Configuração
+
+1. Obtenha sua API key em [https://openrouter.ai/keys](https://openrouter.ai/keys)
+2. Configure a variável `OPENROUTER_API_KEY` no arquivo `.env.local`
+3. O modelo padrão é `openai/gpt-4o-mini`, mas pode ser customizado na requisição
+
+### Modelos Disponíveis
+
+O OpenRouter suporta múltiplos modelos. Você pode especificar o modelo na requisição ou alterar o padrão em `src/lib/api/openrouter.ts`.
+
+Veja a lista completa de modelos em: [https://openrouter.ai/models](https://openrouter.ai/models)
+
 ## 📚 Recursos
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [TanStack Query Documentation](https://tanstack.com/query/latest)
 - [shadcn/ui Documentation](https://ui.shadcn.com/)
 - [Playwright Documentation](https://playwright.dev/)
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [OpenRouter API](https://openrouter.ai/docs)
+- [OpenRouter Models](https://openrouter.ai/models)
+- [OpenRouter AI SDK Provider](https://github.com/OpenRouterTeam/ai-sdk-provider)
 
 ## 📝 Licença
 

@@ -9,11 +9,13 @@ import { useChat } from "@/hooks/useChat";
 interface ChatInputProps {
   onSend?: (message: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function ChatInput({
   onSend,
   placeholder = "Digite sua mensagem...",
+  disabled = false,
 }: ChatInputProps) {
   const { message, setMessage, sendMessage, isLoading } = useChat({
     onSend,
@@ -49,14 +51,15 @@ export function ChatInput({
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          disabled={disabled}
+          className="min-h-[60px] max-h-[200px] resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 disabled:opacity-50"
           rows={1}
         />
         <Button
           onClick={sendMessage}
           size="icon"
           className="shrink-0 bg-yellow-400 text-black cursor-pointer transition-colors hover:bg-yellow-500 hover:text-black focus-visible:ring-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-yellow-400"
-          disabled={!message.trim() || isLoading}
+          disabled={!message.trim() || isLoading || disabled}
         >
           <Send className="size-4" />
           <span className="sr-only">Enviar mensagem</span>
