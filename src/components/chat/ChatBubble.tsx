@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { RotateCw, Pencil, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { format } from "date-fns";
+import { useHover } from "./hooks/useHover";
+import { useCopyToClipboard } from "./hooks/useCopyToClipboard";
+import { useMessageEdit } from "./hooks/useMessageEdit";
+import { formatTime } from "./utils/format";
 
 interface ChatBubbleProps {
   message: string;
@@ -21,55 +24,28 @@ export function ChatBubble({
   onEdit,
   onCopy,
 }: ChatBubbleProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { isHovered, onMouseEnter, onMouseLeave } = useHover();
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedMessage, setEditedMessage] = useState(message);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { copied, copy } = useCopyToClipboard({ onCopy });
+  const {
+    isEditing,
+    editedMessage,
+    setEditedMessage,
+    startEditing,
+    cancelEditing,
+    saveEditing,
+    textareaRef,
+    canSave,
+  } = useMessageEdit({
+    initialMessage: message,
+    onSave: onEdit,
+  });
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message);
-    setCopied(true);
-    onCopy?.();
-    setTimeout(() => setCopied(false), 2000);
+    await copy(message);
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-    setEditedMessage(message);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditedMessage(message);
-  };
-
-  const handleSave = () => {
-    if (editedMessage.trim() && editedMessage.trim() !== message) {
-      onEdit?.(editedMessage.trim());
-    }
-    setIsEditing(false);
-  };
-
-  // Sincronizar editedMessage quando message mudar
-  useEffect(() => {
-    setEditedMessage(message);
-  }, [message]);
-
-  // Auto-resize textarea quando editar
-  useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(
-        textareaRef.current.scrollHeight,
-        200
-      )}px`;
-    }
-  }, [isEditing, editedMessage]);
-
-  const formattedTime = format(timestamp, "HH:mm");
+  const formattedTime = formatTime(timestamp);
 
   // Se estiver editando, mostrar input de edição
   if (isEditing) {
@@ -94,10 +70,10 @@ export function ChatBubble({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSave();
+                  saveEditing();
                 } else if (e.key === "Escape") {
                   e.preventDefault();
-                  handleCancel();
+                  cancelEditing();
                 }
               }}
               placeholder="Digite sua mensagem..."
@@ -111,17 +87,15 @@ export function ChatBubble({
                 variant="outline"
                 size="sm"
                 className="bg-[#1a1a4a] border-0 text-white hover:bg-[#2a2a5a] hover:text-yellow-400"
-                onClick={handleCancel}
+                onClick={cancelEditing}
               >
                 Cancelar
               </Button>
               <Button
                 size="sm"
                 className="bg-yellow-400 text-black cursor-pointer transition-colors hover:bg-yellow-500 hover:text-black focus-visible:ring-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-yellow-400"
-                onClick={handleSave}
-                disabled={
-                  !editedMessage.trim() || editedMessage.trim() === message
-                }
+                onClick={saveEditing}
+                disabled={!canSave}
               >
                 Salvar
               </Button>
@@ -135,8 +109,8 @@ export function ChatBubble({
   return (
     <div
       className="group relative flex flex-col items-end gap-2"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {/* Bubble da mensagem */}
       <div className="rounded-2xl bg-[#1a1a4a] px-4 py-3 max-w-[80%]">
@@ -167,7 +141,7 @@ export function ChatBubble({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-gray-400 hover:text-yellow-400 hover:bg-[#2a2a5a]"
-                  onClick={handleEdit}
+                  onClick={startEditing}
                   onMouseEnter={() => setHoveredAction("editar")}
                   onMouseLeave={() => setHoveredAction(null)}
                 >

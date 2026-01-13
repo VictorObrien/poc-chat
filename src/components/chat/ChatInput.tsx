@@ -3,8 +3,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { KeyboardEvent, useRef, useEffect } from "react";
-import { useChat } from "@/hooks/useChat";
+import { useChatInput } from "./hooks/useChatInput";
 
 interface ChatInputProps {
   onSend?: (message: string) => void;
@@ -17,30 +16,14 @@ export function ChatInput({
   placeholder = "Digite sua mensagem...",
   disabled = false,
 }: ChatInputProps) {
-  const { message, setMessage, sendMessage, isLoading } = useChat({
-    onSend,
-  });
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
-  }, [message]);
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
-    }
-  };
+  const {
+    message,
+    setMessage,
+    sendMessage,
+    isLoading,
+    textareaRef,
+    handleKeyDown,
+  } = useChatInput({ onSend, disabled });
 
   return (
     <div className="relative flex w-full items-end gap-2 rounded-2xl bg-[#1a1a4a] p-2 shadow-sm transition-all duration-500 ease-in-out">
