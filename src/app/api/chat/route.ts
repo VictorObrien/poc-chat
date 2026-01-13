@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // Gerar stream de texto usando Vercel AI SDK
     const result = await streamText({
-      model: openrouter(body.model || "openai/gpt-4o-mini"),
+      model: openrouter(body.model || "google/gemma-3-27b-it:free"),
       messages: messages.map((msg) => ({
         role: msg.role,
         content: msg.content,
