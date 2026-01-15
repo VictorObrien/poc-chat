@@ -12,6 +12,7 @@ import {
   createUserMessage,
   createAssistantMessage,
   createErrorMessage,
+  createSystemMessage,
   generateMessageId,
 } from "@/components/chat/utils/chat";
 
@@ -27,6 +28,11 @@ interface UseChatMessagesReturn {
   resendMessage: (messageId: string) => void;
   editMessage: (messageId: string, newContent: string) => void;
   copyMessage: (messageId: string) => void;
+  addSystemMessage: (content: string, options?: string[]) => void;
+  addUserMessage: (content: string) => void;
+  removeMessage: (messageId: string) => void;
+  removeMessagesByContent: (content: string) => void;
+  clearMessages: () => void;
 }
 
 /**
@@ -57,10 +63,7 @@ export function useChatMessages(
       const newId = generateMessageId("assistant");
       currentAssistantMessageIdRef.current = newId;
 
-      setMessages((prev) => [
-        ...prev,
-        createAssistantMessage(text, newId),
-      ]);
+      setMessages((prev) => [...prev, createAssistantMessage(text, newId)]);
     } else if (currentAssistantMessageIdRef.current) {
       // Atualizar mensagem existente
       setMessages((prev) =>
@@ -98,7 +101,11 @@ export function useChatMessages(
   }, []);
 
   // Integração com API
-  const { sendMessage: sendMessageToAPI, isLoading, error } = useChatAPI({
+  const {
+    sendMessage: sendMessageToAPI,
+    isLoading,
+    error,
+  } = useChatAPI({
     onStream: handleStream,
     onFinish: handleFinish,
     onError: handleError,
@@ -148,12 +155,45 @@ export function useChatMessages(
   }, []);
 
   // Função para copiar mensagem
-  const copyMessage = useCallback((messageId: string) => {
-    const message = messages.find((m) => m.id === messageId);
-    if (message) {
-      navigator.clipboard.writeText(message.content);
-    }
-  }, [messages]);
+  const copyMessage = useCallback(
+    (messageId: string) => {
+      const message = messages.find((m) => m.id === messageId);
+      if (message) {
+        navigator.clipboard.writeText(message.content);
+      }
+    },
+    [messages]
+  );
+
+  // Função para adicionar mensagem do sistema (fluxo guiado)
+  const addSystemMessage = useCallback(
+    (content: string, options?: string[]) => {
+      const systemMessage = createSystemMessage(content, options);
+      setMessages((prev) => [...prev, systemMessage]);
+    },
+    []
+  );
+
+  // Função para adicionar mensagem do usuário (sem enviar para API)
+  const addUserMessage = useCallback((content: string) => {
+    const userMessage = createUserMessage(content);
+    setMessages((prev) => [...prev, userMessage]);
+  }, []);
+
+  // Função para remover uma mensagem específica
+  const removeMessage = useCallback((messageId: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  }, []);
+
+  // Função para remover mensagens por conteúdo (útil para remover "Gerando sua imagem...")
+  const removeMessagesByContent = useCallback((content: string) => {
+    setMessages((prev) => prev.filter((msg) => msg.content !== content));
+  }, []);
+
+  // Função para limpar mensagens
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
 
   return {
     messages,
@@ -163,5 +203,10 @@ export function useChatMessages(
     resendMessage,
     editMessage,
     copyMessage,
+    addSystemMessage,
+    addUserMessage,
+    removeMessage,
+    removeMessagesByContent,
+    clearMessages,
   };
 }

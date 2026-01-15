@@ -18,7 +18,7 @@ interface UseMessageEditReturn {
   startEditing: () => void;
   cancelEditing: () => void;
   saveEditing: () => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   canSave: boolean;
 }
 
@@ -70,8 +70,7 @@ export function useMessageEdit(
   }, [editedMessage, initialMessage, onSave]);
 
   const canSave =
-    editedMessage.trim().length > 0 &&
-    editedMessage.trim() !== initialMessage;
+    editedMessage.trim().length > 0 && editedMessage.trim() !== initialMessage;
 
   return {
     isEditing,

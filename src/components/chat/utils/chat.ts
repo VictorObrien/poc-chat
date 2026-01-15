@@ -61,3 +61,19 @@ export function createErrorMessage(error: Error): Message {
 export function generateMessageId(prefix: string = "msg"): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
+
+/**
+ * Cria uma mensagem do sistema (para fluxo guiado)
+ */
+export function createSystemMessage(
+  content: string,
+  options?: string[]
+): Message {
+  return {
+    id: generateMessageId("system"),
+    content,
+    timestamp: new Date(),
+    role: "system",
+    options,
+  };
+}

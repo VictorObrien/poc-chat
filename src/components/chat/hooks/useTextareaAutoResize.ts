@@ -12,7 +12,7 @@ interface UseTextareaAutoResizeOptions {
 }
 
 interface UseTextareaAutoResizeReturn {
-  textareaRef: RefObject<HTMLTextAreaElement>;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
   resetHeight: () => void;
 }
 

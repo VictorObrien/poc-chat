@@ -8,52 +8,39 @@ import {
   Film,
   Sparkles,
 } from "lucide-react";
+import type { QuickActionType } from "@/lib/types/fal";
+import { QUICK_ACTION_CONFIGS } from "@/lib/types/fal";
 
-interface QuickAction {
-  label: string;
-  icon: React.ReactNode;
-  onClick?: () => void;
+interface QuickActionsProps {
+  onActionSelect?: (actionType: QuickActionType) => void;
 }
 
-const quickActions: QuickAction[] = [
-  {
-    label: "Nova Conversa",
-    icon: <MessageSquare className="size-6" />,
-  },
-  {
-    label: "Imagem Instagram",
-    icon: <ImageIcon className="size-6" />,
-  },
-  {
-    label: "Reels",
-    icon: <Video className="size-6" />,
-  },
-  {
-    label: "Imagem TikTok",
-    icon: <ImageIcon className="size-6" />,
-  },
-  {
-    label: "Vídeo TikTok",
-    icon: <Film className="size-6" />,
-  },
-  {
-    label: "Personalize",
-    icon: <Sparkles className="size-6" />,
-  },
-];
+// Mapeamento de ícones por tipo
+const ACTION_ICONS: Record<QuickActionType, React.ReactNode> = {
+  "new-conversation": <MessageSquare className="size-6" />,
+  "instagram-image": <ImageIcon className="size-6" />,
+  reels: <Video className="size-6" />,
+  "tiktok-image": <ImageIcon className="size-6" />,
+  "tiktok-video": <Film className="size-6" />,
+  personalize: <Sparkles className="size-6" />,
+};
 
-export function QuickActions() {
+export function QuickActions({ onActionSelect }: QuickActionsProps) {
+  const handleActionClick = (actionType: QuickActionType) => {
+    onActionSelect?.(actionType);
+  };
+
   return (
     <div className="grid grid-cols-3 gap-4 sm:grid-cols-3 md:grid-cols-6">
-      {quickActions.map((action, index) => (
+      {QUICK_ACTION_CONFIGS.map((action) => (
         <Button
-          key={index}
+          key={action.type}
           variant="outline"
           className="aspect-square h-auto w-full flex-col gap-2 p-4 bg-[#1a1a4a] border-0 cursor-pointer transition-all duration-500 ease-in-out hover:bg-[#2a2a5a] hover:text-yellow-400"
-          onClick={action.onClick}
+          onClick={() => handleActionClick(action.type)}
         >
           <span className="transition-colors duration-500 hover:text-yellow-400">
-            {action.icon}
+            {ACTION_ICONS[action.type]}
           </span>
           <span className="text-xs font-medium transition-colors duration-500 hover:text-yellow-400">
             {action.label}

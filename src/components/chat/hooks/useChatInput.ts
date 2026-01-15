@@ -16,7 +16,7 @@ interface UseChatInputReturn {
   setMessage: (message: string) => void;
   sendMessage: () => void;
   isLoading: boolean;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   resetHeight: () => void;
 }

@@ -11,48 +11,37 @@ import { CodeBlock } from "@/components/ui/code-block";
  */
 export const markdownComponents: Components = {
   // Estilizar parágrafos
-  p: ({ children }: { children: React.ReactNode }) => (
-    <p className="text-white mb-3 last:mb-0">{children}</p>
-  ),
+  p: ({ children }) => <p className="text-white mb-3 last:mb-0">{children}</p>,
   // Estilizar cabeçalhos
-  h1: ({ children }: { children: React.ReactNode }) => (
+  h1: ({ children }) => (
     <h1 className="text-white text-xl font-bold mb-2 mt-4 first:mt-0">
       {children}
     </h1>
   ),
-  h2: ({ children }: { children: React.ReactNode }) => (
+  h2: ({ children }) => (
     <h2 className="text-white text-lg font-bold mb-2 mt-4 first:mt-0">
       {children}
     </h2>
   ),
-  h3: ({ children }: { children: React.ReactNode }) => (
+  h3: ({ children }) => (
     <h3 className="text-white text-base font-semibold mb-2 mt-3 first:mt-0">
       {children}
     </h3>
   ),
   // Estilizar listas
-  ul: ({ children }: { children: React.ReactNode }) => (
+  ul: ({ children }) => (
     <ul className="list-disc list-inside mb-3 space-y-1 text-white">
       {children}
     </ul>
   ),
-  ol: ({ children }: { children: React.ReactNode }) => (
+  ol: ({ children }) => (
     <ol className="list-decimal list-inside mb-3 space-y-1 text-white">
       {children}
     </ol>
   ),
-  li: ({ children }: { children: React.ReactNode }) => (
-    <li className="text-white ml-4">{children}</li>
-  ),
+  li: ({ children }) => <li className="text-white ml-4">{children}</li>,
   // Estilizar código inline
-  code: ({
-    className,
-    children,
-    ...props
-  }: {
-    className?: string;
-    children: React.ReactNode;
-  }) => {
+  code: ({ className, children, ...props }) => {
     const isInline = !className;
     if (isInline) {
       return (
@@ -71,9 +60,7 @@ export const markdownComponents: Components = {
     );
   },
   // Estilizar blocos de código com botão de copiar
-  pre: ({ children }: { children: React.ReactNode }) => (
-    <CodeBlock>{children}</CodeBlock>
-  ),
+  pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   // Estilizar links
   a: ({ href, children, ...props }) => (
     <a
@@ -87,36 +74,32 @@ export const markdownComponents: Components = {
     </a>
   ),
   // Estilizar blockquotes
-  blockquote: ({ children }: { children: React.ReactNode }) => (
+  blockquote: ({ children }) => (
     <blockquote className="border-l-4 border-yellow-400 pl-4 italic text-gray-300 my-3">
       {children}
     </blockquote>
   ),
   // Estilizar tabelas
-  table: ({ children }: { children: React.ReactNode }) => (
+  table: ({ children }) => (
     <div className="overflow-x-auto mb-3">
       <table className="min-w-full border-collapse border border-[#2a2a5a]">
         {children}
       </table>
     </div>
   ),
-  th: ({ children }: { children: React.ReactNode }) => (
+  th: ({ children }) => (
     <th className="border border-[#2a2a5a] px-4 py-2 bg-[#2a2a5a] text-white font-semibold text-left">
       {children}
     </th>
   ),
-  td: ({ children }: { children: React.ReactNode }) => (
-    <td className="border border-[#2a2a5a] px-4 py-2 text-white">
-      {children}
-    </td>
+  td: ({ children }) => (
+    <td className="border border-[#2a2a5a] px-4 py-2 text-white">{children}</td>
   ),
   // Estilizar linhas horizontais
   hr: () => <hr className="border-[#2a2a5a] my-4" />,
   // Estilizar texto forte e ênfase
-  strong: ({ children }: { children: React.ReactNode }) => (
+  strong: ({ children }) => (
     <strong className="text-white font-semibold">{children}</strong>
   ),
-  em: ({ children }: { children: React.ReactNode }) => (
-    <em className="text-gray-300 italic">{children}</em>
-  ),
+  em: ({ children }) => <em className="text-gray-300 italic">{children}</em>,
 };

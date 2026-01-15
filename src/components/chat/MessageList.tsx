@@ -2,12 +2,14 @@
 
 import { ChatBubble } from "./ChatBubble";
 import { AssistantMessage } from "./AssistantMessage";
+import { SystemMessage } from "./SystemMessage";
 
 export interface Message {
   id: string;
   content: string;
   timestamp: Date;
-  role?: "user" | "assistant";
+  role?: "user" | "assistant" | "system";
+  options?: string[]; // Opções para mensagens do sistema (ex: ["Story", "Post"])
 }
 
 interface MessageListProps {
@@ -15,6 +17,7 @@ interface MessageListProps {
   onResend?: (messageId: string) => void;
   onEdit?: (messageId: string, newMessage: string) => void;
   onCopy?: (messageId: string) => void;
+  onOptionSelect?: (option: string) => void;
 }
 
 export function MessageList({
@@ -22,6 +25,7 @@ export function MessageList({
   onResend,
   onEdit,
   onCopy,
+  onOptionSelect,
 }: MessageListProps) {
   if (messages.length === 0) {
     return null;
@@ -30,7 +34,20 @@ export function MessageList({
   return (
     <div className="flex flex-col gap-4 w-full">
       {messages.map((message) => {
-        // Renderizar mensagens do assistente de forma diferente
+        // Renderizar mensagens do sistema (fluxo guiado)
+        if (message.role === "system") {
+          return (
+            <SystemMessage
+              key={message.id}
+              message={message.content}
+              timestamp={message.timestamp}
+              options={message.options}
+              onOptionSelect={onOptionSelect}
+            />
+          );
+        }
+
+        // Renderizar mensagens do assistente
         if (message.role === "assistant") {
           return (
             <AssistantMessage
@@ -44,14 +61,14 @@ export function MessageList({
 
         // Mensagens do usuário usam ChatBubble com todas as opções
         return (
-          <ChatBubble
-            key={message.id}
-            message={message.content}
-            timestamp={message.timestamp}
-            onResend={() => onResend?.(message.id)}
-            onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
-            onCopy={() => onCopy?.(message.id)}
-          />
+        <ChatBubble
+          key={message.id}
+          message={message.content}
+          timestamp={message.timestamp}
+          onResend={() => onResend?.(message.id)}
+          onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
+          onCopy={() => onCopy?.(message.id)}
+        />
         );
       })}
     </div>
