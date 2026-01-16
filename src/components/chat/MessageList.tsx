@@ -10,6 +10,7 @@ export interface Message {
   timestamp: Date;
   role?: "user" | "assistant" | "system";
   options?: string[]; // Opções para mensagens do sistema (ex: ["Story", "Post"])
+  questionIndex?: number; // Índice da pergunta no fluxo (para identificar qual está ativa)
 }
 
 interface MessageListProps {
@@ -18,6 +19,7 @@ interface MessageListProps {
   onEdit?: (messageId: string, newMessage: string) => void;
   onCopy?: (messageId: string) => void;
   onOptionSelect?: (option: string) => void;
+  currentQuestionIndex?: number; // Índice da pergunta atual no fluxo
 }
 
 export function MessageList({
@@ -26,6 +28,7 @@ export function MessageList({
   onEdit,
   onCopy,
   onOptionSelect,
+  currentQuestionIndex,
 }: MessageListProps) {
   if (messages.length === 0) {
     return null;
@@ -36,6 +39,10 @@ export function MessageList({
       {messages.map((message) => {
         // Renderizar mensagens do sistema (fluxo guiado)
         if (message.role === "system") {
+          const isActive =
+            currentQuestionIndex !== undefined &&
+            message.questionIndex !== undefined &&
+            message.questionIndex === currentQuestionIndex;
           return (
             <SystemMessage
               key={message.id}
@@ -43,6 +50,7 @@ export function MessageList({
               timestamp={message.timestamp}
               options={message.options}
               onOptionSelect={onOptionSelect}
+              isActive={isActive}
             />
           );
         }
@@ -61,14 +69,14 @@ export function MessageList({
 
         // Mensagens do usuário usam ChatBubble com todas as opções
         return (
-        <ChatBubble
-          key={message.id}
-          message={message.content}
-          timestamp={message.timestamp}
-          onResend={() => onResend?.(message.id)}
-          onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
-          onCopy={() => onCopy?.(message.id)}
-        />
+          <ChatBubble
+            key={message.id}
+            message={message.content}
+            timestamp={message.timestamp}
+            onResend={() => onResend?.(message.id)}
+            onEdit={(newMessage) => onEdit?.(message.id, newMessage)}
+            onCopy={() => onCopy?.(message.id)}
+          />
         );
       })}
     </div>

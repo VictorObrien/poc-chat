@@ -8,7 +8,7 @@ import { ImageSkeleton } from "./ImageSkeleton";
 import { useChatMessages } from "./hooks/useChatMessages";
 import { useConversationFlowStore } from "@/stores/conversationFlowStore";
 import { useImageGeneration } from "@/hooks/useImageGeneration";
-import { Button } from "@/components/ui/button";
+import { useAutoScroll } from "./hooks/useAutoScroll";
 
 interface ChatSectionProps {
   onMessageSent?: (hasMessages: boolean) => void;
@@ -51,6 +51,31 @@ export function ChatSection({
 
   const { generateImage } = useImageGeneration();
 
+  // Verifica se existe mensagem "Gerando sua imagem..."
+  const hasGeneratingMessage = messages.some(
+    (msg) =>
+      msg.content.includes("Gerando sua imagem") ||
+      msg.content.includes("Gerando nova imagem")
+  );
+
+  // Mostra skeleton quando:
+  // 1. Existe mensagem "Gerando sua imagem..." E não há imagem gerada ainda
+  // 2. OU está gerando (isGenerating) E não há imagem gerada
+  const shouldShowSkeleton = hasGeneratingMessage && !generatedImageUrl;
+
+  // Scroll automático no browser quando mensagens mudam
+  useAutoScroll({
+    dependencies: [
+      messages.length,
+      messages[messages.length - 1]?.id,
+      generatedImageUrl,
+      shouldShowSkeleton,
+    ],
+    smooth: true,
+    delay: 150,
+    onlyIfNearBottom: false, // Sempre faz scroll para novas mensagens
+  });
+
   // Remover mensagem "Gerando sua imagem..." quando a imagem for gerada
   useEffect(() => {
     if (generatedImageUrl && !isGenerating) {
@@ -69,7 +94,7 @@ export function ChatSection({
     ) {
       const question = getCurrentQuestion();
       if (question) {
-        addSystemMessage(question, getCurrentOptions());
+        addSystemMessage(question, getCurrentOptions(), 0);
       }
     }
   }, [
@@ -105,7 +130,7 @@ export function ChatSection({
         // Adiciona próxima pergunta após um pequeno delay
         setTimeout(() => {
           const nextQ = actionConfig.questions[nextQuestionIndex];
-          addSystemMessage(nextQ.question, nextQ.options);
+          addSystemMessage(nextQ.question, nextQ.options, nextQuestionIndex);
         }, 500);
       } else {
         // Fluxo completo - gera a imagem
@@ -180,74 +205,96 @@ export function ChatSection({
   };
 
   // Determina se deve mostrar o input
-  // Mostra quando showInput é true OU quando há imagem gerada (para permitir modificações)
-  const shouldShowInput = showInput || generatedImageUrl !== null;
+  // Para fluxo guiado: só mostra quando for a última pergunta (sem opções ou quando currentStep é o último)
+  // Para conversa normal: mostra quando showInput é true
+  // Para imagem gerada: sempre mostra para permitir modificações
+  const shouldShowInput = (() => {
+    // Se há imagem gerada, sempre mostra
+    if (generatedImageUrl !== null) return true;
 
-  // Verifica se existe mensagem "Gerando sua imagem..."
-  const hasGeneratingMessage = messages.some(
-    (msg) =>
-      msg.content.includes("Gerando sua imagem") ||
-      msg.content.includes("Gerando nova imagem")
-  );
+    // Se está em fluxo guiado
+    if (activeFlow && actionConfig) {
+      // Se o fluxo está completo, não mostra (vai gerar imagem)
+      if (isFlowComplete()) return false;
 
-  // Mostra skeleton quando:
-  // 1. Existe mensagem "Gerando sua imagem..." E não há imagem gerada ainda
-  // 2. OU está gerando (isGenerating) E não há imagem gerada
-  const shouldShowSkeleton = hasGeneratingMessage && !generatedImageUrl;
+      // Verifica se a pergunta atual é a última (sem opções = pergunta de descrição)
+      const currentQuestion = actionConfig.questions[currentStep];
+      const isLastQuestion = currentStep === actionConfig.questions.length - 1;
+      const hasNoOptions =
+        !currentQuestion?.options || currentQuestion.options.length === 0;
+
+      // Mostra apenas se for a última pergunta (pergunta de descrição)
+      return isLastQuestion && hasNoOptions;
+    }
+
+    // Para conversa normal, usa showInput
+    return showInput;
+  })();
 
   return (
-    <div className="flex flex-col gap-4 w-full">
-      <MessageList
-        messages={messages}
-        onResend={resendMessage}
-        onEdit={editMessage}
-        onCopy={copyMessage}
-        onOptionSelect={handleOptionSelect}
-      />
+    <div className="flex flex-col w-full">
+      {/* Container de mensagens - sem scroll próprio, usa scroll do browser */}
+      <div className="flex flex-col px-4 py-4 space-y-4">
+        <MessageList
+          messages={messages}
+          onResend={resendMessage}
+          onEdit={editMessage}
+          onCopy={copyMessage}
+          onOptionSelect={handleOptionSelect}
+          currentQuestionIndex={
+            activeFlow && actionConfig ? currentStep : undefined
+          }
+        />
 
-      {/* Exibe imagem gerada */}
-      {generatedImageUrl && (
-        <div className="px-4">
-          <GeneratedImage
-            imageUrl={generatedImageUrl}
-            isLoading={isGenerating}
-            actionLabel={actionConfig?.label}
+        {/* Exibe imagem gerada */}
+        {generatedImageUrl && (
+          <div className="pb-4">
+            <GeneratedImage
+              imageUrl={generatedImageUrl}
+              isLoading={isGenerating}
+              actionLabel={actionConfig?.label}
+            />
+          </div>
+        )}
+
+        {/* Skeleton durante geração - aparece quando há mensagem de geração ou isGenerating */}
+        {shouldShowSkeleton && <ImageSkeleton />}
+
+        {/* Loading de chat normal */}
+        {isLoading && !activeFlow && (
+          <div className="flex items-center gap-2 text-gray-400 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
+            <span>Pensando...</span>
+          </div>
+        )}
+
+        {/* Erro do fluxo */}
+        {flowError && (
+          <div className="py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm px-4">
+            Erro: {flowError}
+          </div>
+        )}
+
+        {/* Erro do chat */}
+        {error && (
+          <div className="py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm px-4">
+            Erro: {error.message}
+          </div>
+        )}
+
+        {/* Espaçamento extra no final para garantir que o último item seja visível */}
+        <div className="h-4" />
+      </div>
+
+      {/* Input na parte inferior */}
+      {shouldShowInput && (
+        <div className="px-4 pb-4 pt-2 bg-[#010336] border-t border-[#1a1a4a]/50">
+          <ChatInput
+            onSend={handleSend}
+            disabled={isLoading || isGenerating}
+            placeholder={getPlaceholder()}
           />
         </div>
-      )}
-
-      {/* Skeleton durante geração - aparece quando há mensagem de geração ou isGenerating */}
-      {shouldShowSkeleton && <ImageSkeleton />}
-
-      {/* Loading de chat normal */}
-      {isLoading && !activeFlow && (
-        <div className="flex items-center gap-2 text-gray-400 text-sm px-4">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
-          <span>Pensando...</span>
-        </div>
-      )}
-
-      {/* Erro do fluxo */}
-      {flowError && (
-        <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-          Erro: {flowError}
-        </div>
-      )}
-
-      {/* Erro do chat */}
-      {error && (
-        <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-          Erro: {error.message}
-        </div>
-      )}
-
-      {/* Input - só mostra quando showInput é true e não há imagem gerada */}
-      {shouldShowInput && (
-        <ChatInput
-          onSend={handleSend}
-          disabled={isLoading || isGenerating}
-          placeholder={getPlaceholder()}
-        />
       )}
     </div>
   );
