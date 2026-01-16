@@ -42,10 +42,10 @@ export function ChatContainer() {
   const showQuickActions = !hasMessages && !activeFlow && !isChatMode;
 
   return (
-    <>
+    <div className="flex flex-col w-full">
       {/* Seção de Ações Rápidas - oculta quando há mensagens, fluxo ativo ou modo chat */}
       {showQuickActions && (
-        <div className="flex flex-col gap-6 animate-in fade-in">
+        <div className="flex flex-col gap-6 animate-in fade-in justify-center min-h-[calc(100vh-8rem)]">
           <h2 className="text-center text-2xl font-semibold text-foreground sm:text-3xl lg:text-4xl">
             O que gostaria de criar hoje?
           </h2>
@@ -57,6 +57,6 @@ export function ChatContainer() {
         onMessageSent={handleMessageSent}
         showInput={isChatMode || activeFlow !== null || hasMessages}
       />
-    </>
+    </div>
   );
 }

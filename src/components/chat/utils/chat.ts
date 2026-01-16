@@ -67,7 +67,8 @@ export function generateMessageId(prefix: string = "msg"): string {
  */
 export function createSystemMessage(
   content: string,
-  options?: string[]
+  options?: string[],
+  questionIndex?: number
 ): Message {
   return {
     id: generateMessageId("system"),
@@ -75,5 +76,6 @@ export function createSystemMessage(
     timestamp: new Date(),
     role: "system",
     options,
+    questionIndex, // Índice da pergunta no fluxo para identificar qual é a ativa
   };
 }

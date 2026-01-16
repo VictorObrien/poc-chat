@@ -4,13 +4,20 @@
 
 import { NextRequest } from "next/server";
 import { fal } from "@fal-ai/client";
-import type {
-  QuickActionType,
-  InstagramFormat,
-  FalGenerateRequest,
+import type { QuickActionType } from "@/lib/types/fal";
+import {
+  FAL_MODELS,
+  getImageDimensions,
+  NEGATIVE_PROMPT,
 } from "@/lib/types/fal";
-import { FAL_MODELS, getImageDimensions } from "@/lib/types/fal";
-import { getPromptForModel } from "@/lib/prompts/imagePrompts";
+
+// Interface para requisição
+interface GenerateRequestBody {
+  prompt: string;
+  actionType: QuickActionType;
+  tipoPublicacao?: string; // Para determinar dimensões no Instagram
+  negativePrompt?: string;
+}
 
 interface FalImageResult {
   images: Array<{
@@ -49,7 +56,7 @@ export async function POST(request: NextRequest) {
       credentials: falKey,
     });
 
-    const body: FalGenerateRequest = await request.json();
+    const body: GenerateRequestBody = await request.json();
 
     if (!body.prompt || !body.actionType) {
       return new Response(
@@ -61,9 +68,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { prompt, actionType, format } = body;
+    const { prompt, actionType, tipoPublicacao, negativePrompt } = body;
 
-    // Obter modelo e dimensões
+    // Obter modelo
     const model = FAL_MODELS[actionType];
     if (!model) {
       return new Response(
@@ -77,37 +84,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const dimensions = getImageDimensions(
-      actionType as QuickActionType,
-      format as InstagramFormat
-    );
+    // Obter dimensões baseado no tipo de publicação
+    const dimensions = getImageDimensions(actionType, tipoPublicacao);
 
-    // Construir prompt técnico
-    const technicalPrompt = getPromptForModel(model, {
-      actionType: actionType as QuickActionType,
-      format: format as InstagramFormat,
-      description: prompt,
-    });
+    // Usar negative prompt fixo se não for fornecido
+    const finalNegativePrompt = negativePrompt || NEGATIVE_PROMPT;
 
     console.log("Gerando imagem com fal.ai:", {
       model,
       dimensions,
-      promptLength: technicalPrompt.length,
+      promptLength: prompt.length,
+      tipoPublicacao,
     });
 
+    // Log do prompt completo para debug
+    console.log("Prompt completo:\n", prompt);
+
     // Preparar input baseado no modelo
-    let input: any;
+    let input: Record<string, unknown>;
 
     if (model.includes("gpt-image")) {
       // GPT-Image 1.5 usa formato diferente
       input = {
-        prompt: technicalPrompt,
+        prompt: prompt,
         size: `${dimensions.width}x${dimensions.height}`,
       };
-    } else {
-      // Flux e outros modelos usam formato padrão
+    } else if (model.includes("flux")) {
+      // Flux suporta negative prompt
       input = {
-        prompt: technicalPrompt,
+        prompt: prompt,
+        image_size: {
+          width: dimensions.width,
+          height: dimensions.height,
+        },
+        num_images: 1,
+        enable_safety_checker: true,
+        negative_prompt: finalNegativePrompt,
+      };
+    } else {
+      // Outros modelos - formato padrão
+      input = {
+        prompt: prompt,
         image_size: {
           width: dimensions.width,
           height: dimensions.height,
@@ -149,6 +166,7 @@ export async function POST(request: NextRequest) {
         imageUrl,
         requestId: result.requestId,
         timings: data.timings,
+        dimensions,
       }),
       {
         status: 200,

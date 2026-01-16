@@ -28,7 +28,11 @@ interface UseChatMessagesReturn {
   resendMessage: (messageId: string) => void;
   editMessage: (messageId: string, newContent: string) => void;
   copyMessage: (messageId: string) => void;
-  addSystemMessage: (content: string, options?: string[]) => void;
+  addSystemMessage: (
+    content: string,
+    options?: string[],
+    questionIndex?: number
+  ) => void;
   addUserMessage: (content: string) => void;
   removeMessage: (messageId: string) => void;
   removeMessagesByContent: (content: string) => void;
@@ -167,8 +171,12 @@ export function useChatMessages(
 
   // Função para adicionar mensagem do sistema (fluxo guiado)
   const addSystemMessage = useCallback(
-    (content: string, options?: string[]) => {
-      const systemMessage = createSystemMessage(content, options);
+    (content: string, options?: string[], questionIndex?: number) => {
+      const systemMessage = createSystemMessage(
+        content,
+        options,
+        questionIndex
+      );
       setMessages((prev) => [...prev, systemMessage]);
     },
     []

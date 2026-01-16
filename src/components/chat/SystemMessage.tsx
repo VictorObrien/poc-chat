@@ -8,12 +8,14 @@ interface SystemMessageProps {
   timestamp: Date;
   options?: string[];
   onOptionSelect?: (option: string) => void;
+  isActive?: boolean; // Se esta pergunta está ativa (não respondida ainda)
 }
 
 export function SystemMessage({
   message,
   options,
   onOptionSelect,
+  isActive = true,
 }: SystemMessageProps) {
   return (
     <div className="flex gap-3 w-full">
@@ -37,7 +39,8 @@ export function SystemMessage({
                 variant="outline"
                 size="sm"
                 onClick={() => onOptionSelect?.(option)}
-                className="bg-[#1a1a4a] border-[#2a2a5a] hover:bg-[#2a2a5a] hover:text-yellow-400 hover:border-yellow-400/50 transition-all"
+                disabled={!isActive}
+                className="bg-[#1a1a4a] border-[#2a2a5a] hover:bg-[#2a2a5a] hover:text-yellow-400 hover:border-yellow-400/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#1a1a4a] disabled:hover:text-gray-400 disabled:hover:border-[#2a2a5a]"
               >
                 {option}
               </Button>

@@ -70,9 +70,7 @@ poc-chat/
 │   │   │   └── openrouter.ts # Serviço OpenRouter
 │   │   ├── types/            # Tipos TypeScript
 │   │   │   ├── openrouter.ts # Tipos da API OpenRouter
-│   │   │   └── fal.ts        # Tipos para fal.ai e Quick Actions
-│   │   ├── prompts/          # Templates de prompts
-│   │   │   └── imagePrompts.ts # Prompts para geração de imagens
+│   │   │   └── fal.ts        # Tipos, prompts e configs para fal.ai
 │   │   └── utils.ts          # Funções utilitárias (cn, etc.)
 │   ├── stores/                # Zustand stores
 │   │   └── conversationFlowStore.ts # Store para fluxo de conversa guiado
@@ -224,8 +222,8 @@ O projeto segue uma arquitetura escalável com:
 ### Fluxo de Dados
 
 1. **Quick Actions** → Inicia fluxo guiado no `conversationFlowStore`
-2. **Fluxo Guiado** → Coleta respostas do usuário via `SystemMessage` e `ChatInput`
-3. **Geração de Prompt** → `imagePrompts.ts` constrói prompt técnico otimizado
+2. **Fluxo Guiado** → Coleta respostas do usuário via `SystemMessage` e `ChatInput` (7 perguntas)
+3. **Geração de Prompt** → `buildFinalPrompt()` em `fal.ts` constrói prompt técnico otimizado
 4. **API Route** → `/api/fal/generate` processa e chama fal.ai
 5. **Hook de Geração** → `useImageGeneration` gerencia estado e exibe resultado
 6. **Componente de Imagem** → `GeneratedImage` exibe imagem com ações
@@ -277,34 +275,58 @@ O projeto está integrado com a API do **fal.ai** para geração de imagens usan
 #### Arquitetura da Integração
 
 1. **API Route** (`/api/fal/generate`): Rota do Next.js que atua como proxy seguro, mantendo a API key no servidor
-2. **Tipos TypeScript** (`src/lib/types/fal.ts`): Tipos completos para Quick Actions, modelos e configurações
-3. **Templates de Prompts** (`src/lib/prompts/imagePrompts.ts`): Sistema de construção de prompts técnicos otimizados
-4. **Store de Fluxo** (`src/stores/conversationFlowStore.ts`): Gerenciamento de estado para fluxos de conversa guiados
-5. **Hook useImageGeneration** (`src/hooks/useImageGeneration.ts`): Hook React para gerenciar geração de imagens
+2. **Tipos e Prompts** (`src/lib/types/fal.ts`): Tipos, mapeamentos de opções para prompts, e funções de construção de prompt
+3. **Store de Fluxo** (`src/stores/conversationFlowStore.ts`): Gerenciamento de estado para fluxos de conversa guiados
+4. **Hook useImageGeneration** (`src/hooks/useImageGeneration.ts`): Hook React para gerenciar geração de imagens
 
 #### Quick Actions
 
 O sistema possui **Quick Actions** pré-configuradas que iniciam fluxos de conversa guiados:
 
-- **Criar imagem Instagram**: Gera imagens para feed (post) ou stories
-- **Imagem TikTok**: Gera thumbnails para vídeos do TikTok
+- **Imagem Instagram**: Fluxo de 7 perguntas + descrição para gerar imagens otimizadas
+- **Imagem TikTok**: Fluxo simplificado para thumbnails de vídeo
 - **Nova Conversa**: Inicia uma nova conversa
 - **Personalizar**: Personaliza a experiência (em desenvolvimento)
 
-#### Fluxo de Conversa Guiado
+#### Fluxo de 7 Perguntas (Instagram)
 
-1. Usuário seleciona uma Quick Action (ex: "Criar imagem Instagram")
-2. Sistema inicia um fluxo guiado com perguntas específicas:
-   - Para Instagram: "Para Store ou Post?"
-   - Para TikTok: Assume que é thumbnail de vídeo
-3. Sistema coleta as respostas do usuário
-4. Constrói um prompt técnico otimizado combinando:
-   - Tipo de ação e formato
-   - Descrição do usuário
-   - Dimensões apropriadas
-   - Diretrizes de estilo específicas da plataforma
-5. Envia o prompt para a API fal.ai
-6. Exibe a imagem gerada com opções de copiar e baixar
+Para gerar imagens de Instagram, o sistema coleta informações através de 7 perguntas estratégicas:
+
+| #   | Pergunta               | Opções                                                       |
+| --- | ---------------------- | ------------------------------------------------------------ |
+| 1   | **Tipo de publicação** | Story, Post no Feed, Capa de Reels, Anúncio (Ads)            |
+| 2   | **Estrutura**          | Imagem única, Carrossel, Sequência de Stories, Story animado |
+| 3   | **Objetivo**           | Vender, Engajar, Informar, Fortalecer marca, Lançar algo     |
+| 4   | **Público-alvo**       | Jovens, Adultos, Empresários, Público geral, Público premium |
+| 5   | **Estilo visual**      | Minimalista, Moderno, Divertido, Luxuoso, Impactante, Clean  |
+| 6   | **Elemento principal** | Produto, Pessoa, Texto, Marca (logo), Ambiente               |
+| 7   | **Ação desejada**      | Comprar, Clicar, Enviar mensagem, Seguir, Apenas absorver    |
+| 8   | **Descrição**          | Texto livre para detalhes adicionais                         |
+
+Cada resposta ativa um trecho fixo de prompt que é concatenado em um prompt final otimizado.
+
+#### Exemplo de Prompt Gerado
+
+Respostas: Post no Feed → Imagem única → Vender → Adultos → Moderno → Produto → Comprar
+
+```
+High quality, professional social media artwork.
+Instagram feed post, square or vertical composition, high quality
+single image composition, clear visual hierarchy
+sales-focused, persuasive visual, strong call to action
+targeted to adult audience, balanced and professional
+modern design, contemporary trends
+product-centered composition, product clearly highlighted
+clear call to action to buy
+User description: [descrição do usuário]
+Instagram optimized, sharp, high resolution, clean layout, strong composition, modern typography.
+```
+
+#### Negative Prompt (fixo)
+
+```
+blurry, low quality, distorted, bad typography, unreadable text, watermark, logo artifacts, oversaturated, low contrast, messy layout
+```
 
 #### Modelos Suportados
 
@@ -312,11 +334,15 @@ O sistema possui **Quick Actions** pré-configuradas que iniciam fluxos de conve
 - **Flux Schnell** (`fal-ai/flux/schnell`): Modelo rápido (alternativa)
 - **Flux Pro** (`fal-ai/flux-pro/v1.1`): Modelo premium (requer créditos pagos)
 
-#### Dimensões por Formato
+#### Dimensões Automáticas
 
-- **Instagram Post**: 1080x1080 (quadrado)
-- **Instagram Story**: 1080x1920 (vertical)
-- **TikTok Thumbnail**: 1080x1920 (vertical)
+As dimensões são determinadas automaticamente baseado no tipo de publicação:
+
+| Tipo                   | Dimensões | Formato       |
+| ---------------------- | --------- | ------------- |
+| Story / Capa de Reels  | 1080x1920 | Vertical 9:16 |
+| Post no Feed / Anúncio | 1080x1080 | Quadrado 1:1  |
+| TikTok Thumbnail       | 1080x1920 | Vertical 9:16 |
 
 #### Configuração
 

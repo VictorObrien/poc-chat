@@ -1,10 +1,12 @@
 /**
  * Hook para gerenciar a geração de imagens com fal.ai
+ * Usa o novo sistema de 7 perguntas para construir prompts otimizados
  */
 
 import { useCallback, useState } from "react";
 import { useConversationFlowStore } from "@/stores/conversationFlowStore";
-import type { QuickActionType, InstagramFormat } from "@/lib/types/fal";
+import type { QuickActionType } from "@/lib/types/fal";
+import { buildFinalPrompt } from "@/lib/types/fal";
 
 interface UseImageGenerationReturn {
   isGenerating: boolean;
@@ -36,8 +38,10 @@ export function useImageGeneration(): UseImageGenerationReturn {
       return;
     }
 
-    if (!responses.description) {
-      setError("Descrição da imagem é obrigatória");
+    // Verificar se tem respostas suficientes
+    const hasResponses = Object.keys(responses).length > 0;
+    if (!hasResponses) {
+      setError("Responda as perguntas para gerar a imagem");
       return;
     }
 
@@ -47,16 +51,24 @@ export function useImageGeneration(): UseImageGenerationReturn {
     setGeneratedImageUrl(null);
 
     try {
+      // Construir prompt final usando o novo sistema de 7 perguntas
+      const finalPrompt = buildFinalPrompt(
+        activeFlow as QuickActionType,
+        responses
+      );
+
+      console.log("Prompt construído:", finalPrompt);
+
       const response = await fetch("/api/fal/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: responses.description,
+          prompt: finalPrompt,
           actionType: activeFlow as QuickActionType,
-          format:
-            (responses.format?.toLowerCase() as InstagramFormat) || undefined,
+          // Passar tipo de publicação para determinar dimensões
+          tipoPublicacao: responses.tipo_publicacao,
         }),
       });
 
@@ -66,6 +78,12 @@ export function useImageGeneration(): UseImageGenerationReturn {
       }
 
       const data = await response.json();
+
+      console.log("Imagem gerada:", {
+        imageUrl: data.imageUrl,
+        dimensions: data.dimensions,
+        timings: data.timings,
+      });
 
       setGeneratedImageUrl(data.imageUrl);
       setGeneratedImage(data.imageUrl);
