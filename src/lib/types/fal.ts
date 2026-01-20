@@ -117,7 +117,8 @@ export const NEGATIVE_PROMPT =
 export interface ConversationQuestion {
   key: string;
   question: string;
-  options?: string[]; // Opções de resposta
+  options?: string[]; // Opções de resposta (labels)
+  optionPrompts?: Record<string, string>; // Mapeamento label -> prompt (para custom actions)
 }
 
 // Configuração de cada Quick Action

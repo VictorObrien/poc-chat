@@ -33,11 +33,11 @@ const ACTION_ICONS: Record<QuickActionType, React.ReactNode> = {
 
 // Ícones para tipos de trabalho customizados
 const WORK_TYPE_ICONS: Record<WorkType, React.ReactNode> = {
-  "image-generation": <ImageIcon className="size-4" />,
-  "video-generation": <Video className="size-4" />,
-  "document-analysis": <MessageSquare className="size-4" />,
-  "voice-to-text": <MessageSquare className="size-4" />,
-  "copy-writing": <PenTool className="size-4" />,
+  "image-generation": <ImageIcon className="size-8" />,
+  "video-generation": <Video className="size-8" />,
+  "document-analysis": <MessageSquare className="size-8" />,
+  "voice-to-text": <MessageSquare className="size-8" />,
+  "copy-writing": <PenTool className="size-8" />,
 };
 
 export function QuickActions({ onActionSelect }: QuickActionsProps) {
@@ -77,23 +77,23 @@ export function QuickActions({ onActionSelect }: QuickActionsProps) {
     <>
       <div className="flex flex-col gap-8">
         {/* Grid de ações padrão */}
-        <div className="grid grid-cols-3 gap-4 sm:grid-cols-3 md:grid-cols-6">
+    <div className="grid grid-cols-3 gap-4 sm:grid-cols-3 md:grid-cols-6">
           {/* Ações padrão */}
           {defaultActions.map((action) => (
-            <Button
+        <Button
               key={action.type}
-              variant="outline"
-              className="aspect-square h-auto w-full flex-col gap-2 p-4 bg-[#1a1a4a] border-0 cursor-pointer transition-all duration-500 ease-in-out hover:bg-[#2a2a5a] hover:text-yellow-400"
+          variant="outline"
+          className="aspect-square h-auto w-full flex-col gap-2 p-4 bg-[#1a1a4a] border-0 cursor-pointer transition-all duration-500 ease-in-out hover:bg-[#2a2a5a] hover:text-yellow-400"
               onClick={() => handleActionClick(action.type)}
-            >
-              <span className="transition-colors duration-500 hover:text-yellow-400">
+        >
+          <span className="transition-colors duration-500 hover:text-yellow-400">
                 {ACTION_ICONS[action.type]}
-              </span>
-              <span className="text-xs font-medium transition-colors duration-500 hover:text-yellow-400">
-                {action.label}
-              </span>
-            </Button>
-          ))}
+          </span>
+          <span className="text-xs font-medium transition-colors duration-500 hover:text-yellow-400">
+            {action.label}
+          </span>
+        </Button>
+      ))}
 
           {/* Botão Personalize sempre por último */}
           {personalizeAction && (
@@ -126,9 +126,17 @@ export function QuickActions({ onActionSelect }: QuickActionsProps) {
                     className="h-auto px-4 py-3 rounded-lg bg-[#1a1a4a] border-[#2a2a5a] hover:bg-[#2a2a5a] hover:text-yellow-400 hover:border-yellow-400/50 transition-all duration-200 flex items-center gap-2 text-sm font-medium text-gray-200"
                     onClick={() => handleActionClick(`custom-${action.id}`)}
                   >
-                    <span className="text-yellow-400">
-                      {WORK_TYPE_ICONS[action.workType]}
-                    </span>
+                    {action.imageUrl ? (
+                      <img
+                        src={action.imageUrl}
+                        alt={action.title}
+                        className="size-8 rounded-full object-cover flex-shrink-0 border border-[#2a2a5a]"
+                      />
+                    ) : (
+                      <span className="text-yellow-400 flex-shrink-0">
+                        {WORK_TYPE_ICONS[action.workType]}
+                      </span>
+                    )}
                     <span>{action.title}</span>
                   </Button>
 
@@ -146,7 +154,7 @@ export function QuickActions({ onActionSelect }: QuickActionsProps) {
             </div>
           </div>
         )}
-      </div>
+    </div>
 
       {/* Modal de confirmação de exclusão */}
       {actionToDelete && (

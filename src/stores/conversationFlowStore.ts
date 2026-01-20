@@ -173,7 +173,14 @@ export const useConversationFlowStore = create<ConversationFlowStore>(
         actionConfig.questions.forEach((q) => {
           const response = responses[q.key];
           if (response) {
-            parts.push(`${q.question} ${response}`);
+            // Se a pergunta tem optionPrompts e a resposta tem um prompt associado, usar o prompt
+            // Caso contrário, usar a resposta (label) diretamente
+            if (q.optionPrompts && q.optionPrompts[response]) {
+              parts.push(q.optionPrompts[response]);
+            } else {
+              // Se não tem prompt específico, usar o label da resposta
+              parts.push(response);
+            }
           }
         });
 

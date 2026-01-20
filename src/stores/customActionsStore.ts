@@ -116,11 +116,19 @@ export const useCustomActionsStore = create<CustomActionsStore>()(
         if (!action) return undefined;
 
         // Converter CustomField[] para ConversationQuestion[]
+        // Extrair apenas os labels das opções para exibição
         const questions: ConversationQuestion[] = action.fields.map(
           (field) => ({
             key: field.key,
             question: field.question,
-            options: field.options,
+            options: field.options.map((opt) => opt.label), // Usar apenas labels para exibição
+            // Armazenar opções completas em um campo customizado para uso no prompt
+            optionPrompts: field.options.reduce((acc, opt, index) => {
+              if (opt.prompt) {
+                acc[opt.label] = opt.prompt;
+              }
+              return acc;
+            }, {} as Record<string, string>),
           })
         );
 

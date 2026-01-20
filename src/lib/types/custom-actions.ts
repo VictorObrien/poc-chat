@@ -10,11 +10,17 @@ export type WorkType =
   | "voice-to-text" // Conversão de voz para texto
   | "copy-writing"; // Criação de copy publicitário
 
+// Interface para opção de resposta
+export interface CustomOption {
+  label: string; // Texto exibido para o usuário (obrigatório)
+  prompt?: string; // Prompt gerado por esta opção (opcional)
+}
+
 // Interface para campo de pergunta customizado
 export interface CustomField {
   id: string;
   question: string;
-  options: string[]; // Sempre múltipla escolha
+  options: CustomOption[]; // Sempre múltipla escolha
   key: string; // Chave única para identificar a resposta
 }
 
@@ -24,6 +30,7 @@ export interface CustomQuickAction {
   title: string;
   workType: WorkType;
   icon?: string; // Nome do ícone Lucide
+  imageUrl?: string; // URL da imagem (base64) para exibir no card
   fields: CustomField[];
   createdAt: number; // timestamp
   updatedAt: number; // timestamp
@@ -33,13 +40,14 @@ export interface CustomQuickAction {
 export interface CustomActionFormData {
   title: string;
   workType: WorkType | "";
+  imageUrl?: string; // URL da imagem (base64) para preview
   fields: CustomFieldFormData[];
 }
 
 export interface CustomFieldFormData {
   id: string;
   question: string;
-  options: string[];
+  options: CustomOption[];
 }
 
 // Mapeamento de tipos de trabalho para modelos padrão da fal.ai

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, X, Sparkles, GripVertical } from "lucide-react";
+import { ImageUpload } from "./ImageUpload";
 import {
   DndContext,
   closestCenter,
@@ -58,11 +59,15 @@ interface CustomizeActionModalProps {
 const initialFormState: CustomActionFormData = {
   title: "",
   workType: "",
+  imageUrl: undefined,
   fields: [
     {
       id: generateId(),
       question: "",
-      options: ["", ""],
+      options: [
+        { label: "", prompt: "" },
+        { label: "", prompt: "" },
+      ],
     },
   ],
 };
@@ -73,7 +78,8 @@ function SortableFieldItem({
   fieldIndex,
   errors,
   onQuestionChange,
-  onOptionChange,
+  onOptionLabelChange,
+  onOptionPromptChange,
   onAddOption,
   onRemoveOption,
   onRemoveField,
@@ -82,7 +88,8 @@ function SortableFieldItem({
   fieldIndex: number;
   errors: Record<string, string>;
   onQuestionChange: (fieldId: string, question: string) => void;
-  onOptionChange: (fieldId: string, optionIndex: number, value: string) => void;
+  onOptionLabelChange: (fieldId: string, optionIndex: number, label: string) => void;
+  onOptionPromptChange: (fieldId: string, optionIndex: number, prompt: string) => void;
   onAddOption: (fieldId: string) => void;
   onRemoveOption: (fieldId: string, optionIndex: number) => void;
   onRemoveField: (fieldId: string) => void;
@@ -148,31 +155,64 @@ function SortableFieldItem({
       {/* Opções de resposta */}
       <div className="space-y-2">
         <Label className="text-sm text-gray-400">Opções de Resposta</Label>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {field.options.map((option, optionIndex) => (
             <div
               key={optionIndex}
-              className="flex gap-2 animate-in fade-in duration-150"
+              className="space-y-2 p-3 border border-[#2a2a5a] rounded-lg bg-[#0a0a2a]/50 animate-in fade-in duration-150"
             >
-              <Input
-                value={option}
-                onChange={(e) =>
-                  onOptionChange(field.id, optionIndex, e.target.value)
-                }
-                placeholder={`Opção ${optionIndex + 1}`}
-                className="bg-[#0a0a2a] border-[#2a2a5a] text-white placeholder:text-gray-500 focus:border-yellow-400/50"
-              />
-              {field.options.length > 2 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onRemoveOption(field.id, optionIndex)}
-                  className="h-10 w-10 text-gray-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0"
-                >
-                  <X className="size-4" />
-                </Button>
-              )}
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs text-gray-500">
+                  Opção {optionIndex + 1}
+                </Label>
+                {field.options.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemoveOption(field.id, optionIndex)}
+                    className="h-6 w-6 text-gray-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0"
+                  >
+                    <X className="size-3" />
+                  </Button>
+                )}
+              </div>
+              
+              {/* Input Label (obrigatório) */}
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-400">
+                  Label <span className="text-red-400">*</span>
+                </Label>
+                <Input
+                  value={option.label}
+                  onChange={(e) =>
+                    onOptionLabelChange(field.id, optionIndex, e.target.value)
+                  }
+                  placeholder={`Ex: Story, Post, Reels...`}
+                  className="bg-[#0a0a2a] border-[#2a2a5a] text-white placeholder:text-gray-500 focus:border-yellow-400/50"
+                  required
+                />
+                {errors[`field_${field.id}_option_${optionIndex}_label`] && (
+                  <p className="text-xs text-red-400">
+                    {errors[`field_${field.id}_option_${optionIndex}_label`]}
+                  </p>
+                )}
+              </div>
+              
+              {/* Input Prompt (opcional) */}
+              <div className="space-y-1">
+                <Label className="text-xs text-gray-400">
+                  Prompt (opcional)
+                </Label>
+                <Input
+                  value={option.prompt || ""}
+                  onChange={(e) =>
+                    onOptionPromptChange(field.id, optionIndex, e.target.value)
+                  }
+                  placeholder={`Ex: Instagram Story, vertical 9:16...`}
+                  className="bg-[#0a0a2a] border-[#2a2a5a] text-white placeholder:text-gray-500 focus:border-yellow-400/50"
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -234,7 +274,10 @@ export function CustomizeActionModal({
     const newField: CustomFieldFormData = {
       id: generateId(),
       question: "",
-      options: ["", ""],
+      options: [
+        { label: "", prompt: "" },
+        { label: "", prompt: "" },
+      ],
     };
     setFormData((prev) => ({
       ...prev,
@@ -282,7 +325,9 @@ export function CustomizeActionModal({
     setFormData((prev) => ({
       ...prev,
       fields: prev.fields.map((f) =>
-        f.id === fieldId ? { ...f, options: [...f.options, ""] } : f
+        f.id === fieldId
+          ? { ...f, options: [...f.options, { label: "", prompt: "" }] }
+          : f
       ),
     }));
   }, []);
@@ -302,9 +347,9 @@ export function CustomizeActionModal({
     []
   );
 
-  // Atualizar valor da opção
-  const handleOptionChange = useCallback(
-    (fieldId: string, optionIndex: number, value: string) => {
+  // Atualizar label da opção
+  const handleOptionLabelChange = useCallback(
+    (fieldId: string, optionIndex: number, label: string) => {
       setFormData((prev) => ({
         ...prev,
         fields: prev.fields.map((f) =>
@@ -312,7 +357,27 @@ export function CustomizeActionModal({
             ? {
                 ...f,
                 options: f.options.map((opt, i) =>
-                  i === optionIndex ? value : opt
+                  i === optionIndex ? { ...opt, label } : opt
+                ),
+              }
+            : f
+        ),
+      }));
+    },
+    []
+  );
+
+  // Atualizar prompt da opção
+  const handleOptionPromptChange = useCallback(
+    (fieldId: string, optionIndex: number, prompt: string) => {
+      setFormData((prev) => ({
+        ...prev,
+        fields: prev.fields.map((f) =>
+          f.id === fieldId
+            ? {
+                ...f,
+                options: f.options.map((opt, i) =>
+                  i === optionIndex ? { ...opt, prompt } : opt
                 ),
               }
             : f
@@ -342,11 +407,20 @@ export function CustomizeActionModal({
           newErrors[`field_${field.id}_question`] = "Pergunta é obrigatória";
         }
 
-        const validOptions = field.options.filter((opt) => opt.trim());
+        // Validar que cada opção tem label preenchido
+        const validOptions = field.options.filter((opt) => opt.label.trim());
         if (validOptions.length < 2) {
           newErrors[`field_${field.id}_options`] =
-            "Adicione pelo menos 2 opções";
+            "Adicione pelo menos 2 opções com label preenchido";
         }
+        
+        // Validar labels individuais
+        field.options.forEach((opt, optIndex) => {
+          if (!opt.label.trim()) {
+            newErrors[`field_${field.id}_option_${optIndex}_label`] =
+              "Label é obrigatório";
+          }
+        });
       });
     }
 
@@ -361,12 +435,17 @@ export function CustomizeActionModal({
     setIsSubmitting(true);
 
     try {
-      // Limpar opções vazias antes de salvar
+      // Limpar opções sem label antes de salvar
       const cleanedFields = formData.fields
         .filter((f) => f.question.trim())
         .map((f) => ({
           ...f,
-          options: f.options.filter((opt) => opt.trim()),
+          options: f.options
+            .filter((opt) => opt.label.trim()) // Manter apenas opções com label
+            .map((opt) => ({
+              label: opt.label.trim(),
+              prompt: opt.prompt?.trim() || undefined, // Prompt opcional, remove se vazio
+            })),
         }));
 
       // Adicionar key para cada campo
@@ -378,6 +457,7 @@ export function CustomizeActionModal({
       createCustomAction({
         title: formData.title.trim(),
         workType: formData.workType as WorkType,
+        imageUrl: formData.imageUrl, // Incluir imagem se foi adicionada
         fields: fieldsWithKeys,
       });
 
@@ -425,6 +505,14 @@ export function CustomizeActionModal({
               <p className="text-sm text-red-400">{errors.title}</p>
             )}
           </div>
+
+          {/* Upload de imagem */}
+          <ImageUpload
+            value={formData.imageUrl}
+            onChange={(imageUrl) =>
+              setFormData((prev) => ({ ...prev, imageUrl }))
+            }
+          />
 
           {/* Tipo de trabalho */}
           <div className="space-y-2">
@@ -494,7 +582,8 @@ export function CustomizeActionModal({
                         fieldIndex={fieldIndex}
                         errors={errors}
                         onQuestionChange={handleQuestionChange}
-                        onOptionChange={handleOptionChange}
+                        onOptionLabelChange={handleOptionLabelChange}
+                        onOptionPromptChange={handleOptionPromptChange}
                         onAddOption={handleAddOption}
                         onRemoveOption={handleRemoveOption}
                         onRemoveField={handleRemoveField}
