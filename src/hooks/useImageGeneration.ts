@@ -1,6 +1,7 @@
 /**
  * Hook para gerenciar a geração de imagens com fal.ai
  * Usa o novo sistema de 7 perguntas para construir prompts otimizados
+ * Suporta ações padrão e customizadas
  */
 
 import { useCallback, useState } from "react";
@@ -31,7 +32,8 @@ export function useImageGeneration(): UseImageGenerationReturn {
 
   const generateImage = useCallback(async () => {
     // Obter estado mais recente diretamente do store (evita problema de closure)
-    const { activeFlow, responses } = useConversationFlowStore.getState();
+    const { activeFlow, responses, actionConfig, getBuiltPrompt } =
+      useConversationFlowStore.getState();
 
     if (!activeFlow) {
       setError("Nenhum fluxo ativo");
@@ -51,25 +53,42 @@ export function useImageGeneration(): UseImageGenerationReturn {
     setGeneratedImageUrl(null);
 
     try {
-      // Construir prompt final usando o novo sistema de 7 perguntas
-      const finalPrompt = buildFinalPrompt(
-        activeFlow as QuickActionType,
-        responses
-      );
+      // Verificar se é ação customizada
+      const isCustomAction = activeFlow.startsWith("custom-");
 
-      console.log("Prompt construído:", finalPrompt);
+      // Construir prompt final
+      let finalPrompt: string;
+
+      if (isCustomAction) {
+        // Para ações customizadas, usa o getBuiltPrompt do store
+        finalPrompt = getBuiltPrompt();
+      } else {
+        // Para ações padrão, usa o buildFinalPrompt com todos os mapeamentos
+        finalPrompt = buildFinalPrompt(
+          activeFlow as QuickActionType,
+          responses
+        );
+      }
+
+      // Preparar corpo da requisição
+      const requestBody: Record<string, unknown> = {
+        prompt: finalPrompt,
+        actionType: activeFlow,
+        // Passar tipo de publicação para determinar dimensões
+        tipoPublicacao: responses.tipo_publicacao,
+      };
+
+      // Para ações customizadas, incluir o modelo da configuração
+      if (isCustomAction && actionConfig?.model) {
+        requestBody.model = actionConfig.model;
+      }
 
       const response = await fetch("/api/fal/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          prompt: finalPrompt,
-          actionType: activeFlow as QuickActionType,
-          // Passar tipo de publicação para determinar dimensões
-          tipoPublicacao: responses.tipo_publicacao,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -78,12 +97,6 @@ export function useImageGeneration(): UseImageGenerationReturn {
       }
 
       const data = await response.json();
-
-      console.log("Imagem gerada:", {
-        imageUrl: data.imageUrl,
-        dimensions: data.dimensions,
-        timings: data.timings,
-      });
 
       setGeneratedImageUrl(data.imageUrl);
       setGeneratedImage(data.imageUrl);

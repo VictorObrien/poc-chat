@@ -34,6 +34,8 @@ interface UseChatMessagesReturn {
     questionIndex?: number
   ) => void;
   addUserMessage: (content: string) => void;
+  addAssistantMessage: (content: string) => string; // Retorna o ID da mensagem criada
+  addImageMessage: (imageUrl: string, label?: string) => string; // Retorna o ID da mensagem criada
   removeMessage: (messageId: string) => void;
   removeMessagesByContent: (content: string) => void;
   clearMessages: () => void;
@@ -188,6 +190,26 @@ export function useChatMessages(
     setMessages((prev) => [...prev, userMessage]);
   }, []);
 
+  // Função para adicionar mensagem do assistente (sem enviar para API)
+  const addAssistantMessage = useCallback((content: string) => {
+    const assistantMessage = createAssistantMessage(content);
+    setMessages((prev) => [...prev, assistantMessage]);
+    return assistantMessage.id;
+  }, []);
+
+  // Função para adicionar mensagem com imagem gerada
+  const addImageMessage = useCallback((imageUrl: string, label?: string) => {
+    const imageMessage: Message = {
+      id: generateMessageId("image"),
+      content: label || "Imagem gerada",
+      timestamp: new Date(),
+      role: "assistant",
+      imageUrl: imageUrl,
+    };
+    setMessages((prev) => [...prev, imageMessage]);
+    return imageMessage.id;
+  }, []);
+
   // Função para remover uma mensagem específica
   const removeMessage = useCallback((messageId: string) => {
     setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
@@ -213,6 +235,8 @@ export function useChatMessages(
     copyMessage,
     addSystemMessage,
     addUserMessage,
+    addAssistantMessage,
+    addImageMessage,
     removeMessage,
     removeMessagesByContent,
     clearMessages,

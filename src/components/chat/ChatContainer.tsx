@@ -3,47 +3,73 @@
 import { useState, useCallback } from "react";
 import { QuickActions } from "./QuickActions";
 import { ChatSection } from "./ChatSection";
+import { CustomizeActionModal } from "./CustomizeActionModal";
 import { useConversationFlowStore } from "@/stores/conversationFlowStore";
+import {
+  useCustomActionsStore,
+  isCustomActionType,
+  getCustomActionIdFromType,
+} from "@/stores/customActionsStore";
 import type { QuickActionType } from "@/lib/types/fal";
 import { getQuickActionConfig } from "@/lib/types/fal";
 
 export function ChatContainer() {
   const [hasMessages, setHasMessages] = useState(false);
-  const [isChatMode, setIsChatMode] = useState(false); // Modo de chat ativo (Nova Conversa)
-  const { startFlow, activeFlow, resetFlow } = useConversationFlowStore();
+  const [isChatMode, setIsChatMode] = useState(false);
+  const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false);
+
+  const { startFlow, startCustomFlow, activeFlow, resetFlow } =
+    useConversationFlowStore();
+  const { getCustomActionConfig } = useCustomActionsStore();
 
   const handleActionSelect = useCallback(
-    (actionType: QuickActionType) => {
-      const config = getQuickActionConfig(actionType);
+    (actionType: string) => {
+      // Verificar se é uma ação customizada
+      if (isCustomActionType(actionType)) {
+        const customId = getCustomActionIdFromType(actionType);
+        if (customId) {
+          const customConfig = getCustomActionConfig(customId);
+          if (customConfig) {
+            startCustomFlow(customConfig);
+            setHasMessages(true);
+            setIsChatMode(false);
+            return;
+          }
+        }
+        return;
+      }
 
+      // Ações padrão
+      const config = getQuickActionConfig(actionType as QuickActionType);
       if (!config) return;
 
-      // Se for geração de imagem, inicia o fluxo guiado
       if (config.isImageGeneration) {
-        startFlow(actionType);
-        setHasMessages(true); // Esconde QuickActions ao iniciar fluxo
-        setIsChatMode(false); // Não é modo chat normal
+        startFlow(actionType as QuickActionType);
+        setHasMessages(true);
+        setIsChatMode(false);
       } else if (actionType === "new-conversation") {
-        // Nova conversa: esconde QuickActions e mostra ChatInput
         resetFlow();
         setHasMessages(false);
-        setIsChatMode(true); // Ativa modo de chat
+        setIsChatMode(true);
+      } else if (actionType === "personalize") {
+        setIsCustomizeModalOpen(true);
       }
-      // Outras ações podem ser tratadas aqui futuramente
     },
-    [startFlow, resetFlow]
+    [startFlow, startCustomFlow, resetFlow, getCustomActionConfig]
   );
 
   const handleMessageSent = useCallback((hasMsgs: boolean) => {
     setHasMessages(hasMsgs);
   }, []);
 
-  // Mostrar QuickActions apenas quando não há mensagens, não há fluxo ativo e não está no modo chat
+  const handleCustomizeSuccess = useCallback(() => {
+    // Opcional: fazer algo após criar uma Quick Action customizada
+  }, []);
+
   const showQuickActions = !hasMessages && !activeFlow && !isChatMode;
 
   return (
     <div className="flex flex-col w-full">
-      {/* Seção de Ações Rápidas - oculta quando há mensagens, fluxo ativo ou modo chat */}
       {showQuickActions && (
         <div className="flex flex-col gap-6 animate-in fade-in justify-center min-h-[calc(100vh-8rem)]">
           <h2 className="text-center text-2xl font-semibold text-foreground sm:text-3xl lg:text-4xl">
@@ -56,6 +82,12 @@ export function ChatContainer() {
       <ChatSection
         onMessageSent={handleMessageSent}
         showInput={isChatMode || activeFlow !== null || hasMessages}
+      />
+
+      <CustomizeActionModal
+        open={isCustomizeModalOpen}
+        onOpenChange={setIsCustomizeModalOpen}
+        onSuccess={handleCustomizeSuccess}
       />
     </div>
   );

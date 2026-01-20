@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { ChatInput } from "./ChatInput";
 import { MessageList } from "./MessageList";
-import { GeneratedImage } from "./GeneratedImage";
 import { ImageSkeleton } from "./ImageSkeleton";
 import { useChatMessages } from "./hooks/useChatMessages";
 import { useConversationFlowStore } from "@/stores/conversationFlowStore";
 import { useImageGeneration } from "@/hooks/useImageGeneration";
 import { useAutoScroll } from "./hooks/useAutoScroll";
+import { useChatAPI } from "@/hooks/useChatAPI";
+import { buildConversationHistory } from "./utils/chat";
 
 interface ChatSectionProps {
   onMessageSent?: (hasMessages: boolean) => void;
@@ -29,6 +30,8 @@ export function ChatSection({
     copyMessage,
     addSystemMessage,
     addUserMessage,
+    addAssistantMessage,
+    addImageMessage,
     removeMessagesByContent,
     clearMessages,
   } = useChatMessages({ onMessageSent });
@@ -47,9 +50,46 @@ export function ChatSection({
     nextStep,
     resetFlow,
     setGenerating,
+    getBuiltPrompt,
   } = useConversationFlowStore();
 
   const { generateImage } = useImageGeneration();
+  
+  // Ref para rastrear o ID da mensagem de texto sendo gerada
+  // Usamos ref ao invés de state para evitar problemas de stale closure nos callbacks
+  const generatingTextMessageIdRef = useRef<string | null>(null);
+  
+  // Ref para rastrear a última URL de imagem adicionada ao chat (evita duplicatas)
+  const lastAddedImageUrlRef = useRef<string | null>(null);
+  
+  const { sendMessage: sendChatMessage } = useChatAPI({
+    onStream: (text) => {
+      // Atualizar mensagem do assistente em tempo real
+      const messageId = generatingTextMessageIdRef.current;
+      if (messageId) {
+        editMessage(messageId, text);
+      }
+    },
+    onFinish: (text) => {
+      // Garantir que a mensagem final está salva
+      const messageId = generatingTextMessageIdRef.current;
+      if (messageId) {
+        editMessage(messageId, text);
+      }
+      generatingTextMessageIdRef.current = null;
+      setGenerating(false);
+    },
+    onError: (error) => {
+      const messageId = generatingTextMessageIdRef.current;
+      if (messageId) {
+        editMessage(messageId, `Erro ao gerar texto: ${error.message}`);
+      } else {
+        addSystemMessage(`Erro ao gerar texto: ${error.message}`);
+      }
+      generatingTextMessageIdRef.current = null;
+      setGenerating(false);
+    },
+  });
 
   // Verifica se existe mensagem "Gerando sua imagem..."
   const hasGeneratingMessage = messages.some(
@@ -76,13 +116,21 @@ export function ChatSection({
     onlyIfNearBottom: false, // Sempre faz scroll para novas mensagens
   });
 
-  // Remover mensagem "Gerando sua imagem..." quando a imagem for gerada
+  // Quando a imagem for gerada, adiciona ao chat e remove mensagem "Gerando..."
   useEffect(() => {
     if (generatedImageUrl && !isGenerating) {
+      // Remover mensagens de geração
       removeMessagesByContent("Gerando sua imagem... 🎨");
       removeMessagesByContent("Gerando nova imagem... 🎨");
+      removeMessagesByContent("Gerando nova imagem com as modificações... 🎨");
+      
+      // Adicionar imagem ao chat se for uma nova imagem
+      if (generatedImageUrl !== lastAddedImageUrlRef.current) {
+        addImageMessage(generatedImageUrl, actionConfig?.label || "Imagem gerada");
+        lastAddedImageUrlRef.current = generatedImageUrl;
+      }
     }
-  }, [generatedImageUrl, isGenerating, removeMessagesByContent]);
+  }, [generatedImageUrl, isGenerating, removeMessagesByContent, addImageMessage, actionConfig?.label]);
 
   // Quando o fluxo inicia, adiciona a primeira pergunta
   useEffect(() => {
@@ -106,6 +154,34 @@ export function ChatSection({
     getCurrentOptions,
     addSystemMessage,
   ]);
+
+  // Função para gerar texto (copy-writing)
+  const generateText = useCallback(async () => {
+    const prompt = getBuiltPrompt();
+    
+    // Construir prompt mais detalhado para copy-writing
+    const copyPrompt = `Você é um especialista em copywriting publicitário. Crie um texto publicitário persuasivo e envolvente baseado nas seguintes informações:
+
+${prompt}
+
+Gere um copy publicitário completo, incluindo:
+- Título impactante
+- Texto principal persuasivo
+- Call-to-action claro
+
+Formate a resposta de forma clara e profissional.`;
+
+    setGenerating(true);
+    
+    // Criar mensagem inicial do assistente que será atualizada com o stream
+    const messageId = addAssistantMessage("Gerando seu copy publicitário... ✍️");
+    generatingTextMessageIdRef.current = messageId;
+    
+    await sendChatMessage({
+      message: copyPrompt,
+      conversationHistory: [],
+    });
+  }, [getBuiltPrompt, sendChatMessage, setGenerating, addAssistantMessage]);
 
   // Processa resposta do fluxo
   const processFlowResponse = useCallback(
@@ -133,13 +209,17 @@ export function ChatSection({
           addSystemMessage(nextQ.question, nextQ.options, nextQuestionIndex);
         }, 500);
       } else {
-        // Fluxo completo - gera a imagem
+        // Fluxo completo - gera imagem ou texto dependendo do tipo
         setTimeout(async () => {
-          addSystemMessage("Gerando sua imagem... 🎨");
-          // Marcar como gerando no store ANTES de chamar generateImage
-          // para que o skeleton apareça imediatamente
-          setGenerating(true);
-          await generateImage();
+          // Verificar se é copy-writing
+          if (actionConfig.workType === "copy-writing") {
+            await generateText();
+          } else {
+            // Gera imagem para outros tipos
+            addSystemMessage("Gerando sua imagem... 🎨");
+            setGenerating(true);
+            await generateImage();
+          }
         }, 500);
       }
     },
@@ -151,6 +231,7 @@ export function ChatSection({
       addSystemMessage,
       addUserMessage,
       generateImage,
+      generateText,
       setGenerating,
     ]
   );
@@ -166,16 +247,83 @@ export function ChatSection({
 
   // Handler principal de envio
   const handleSend = useCallback(
-    (content: string) => {
+    async (content: string) => {
       if (activeFlow && !isFlowComplete()) {
         // Está em fluxo guiado
         processFlowResponse(content, true);
+      } else if (activeFlow && isFlowComplete() && actionConfig?.workType === "copy-writing") {
+        // Solicitar modificação de texto gerado
+        addUserMessage(content);
+        
+        // Buscar texto original (primeira resposta do assistente que não seja "Gerando..." ou "Modificando...")
+        const originalText = messages
+          .filter(m => m.role === "assistant")
+          .filter(m => !m.content.includes("Gerando") && !m.content.includes("Modificando"))
+          .find(() => true)?.content || "";
+        
+        // Histórico limitado: apenas últimas 4 mensagens (2 modificações recentes)
+        // Isso economiza tokens mantendo o contexto das modificações mais recentes
+        const relevantMessages = messages.filter(
+          m => (m.role === "user" || m.role === "assistant") &&
+               !m.content.includes("Gerando") &&
+               !m.content.includes("Modificando")
+        );
+        
+        const MAX_RECENT_MESSAGES = 4; // Apenas últimas 2 modificações
+        const recentMessages = relevantMessages.slice(-MAX_RECENT_MESSAGES);
+        const conversationHistory = buildConversationHistory(recentMessages.slice(0, -1));
+        
+        // Construir mensagens com system message (texto original) + histórico limitado
+        // System message economiza tokens ao incluir contexto uma vez ao invés de repetir
+        const messagesWithContext: typeof conversationHistory = [
+          {
+            role: "system",
+            content: originalText
+              ? `Você é um especialista em copywriting publicitário. O texto original gerado foi:\n\n"${originalText}"\n\nAplique as modificações solicitadas pelo usuário mantendo o contexto, tema e estrutura do texto original.`
+              : "Você é um especialista em copywriting publicitário."
+          },
+          ...conversationHistory
+        ];
+
+        setGenerating(true);
+        
+        // Criar mensagem do assistente para atualizar com o stream
+        const messageId = addAssistantMessage("Modificando seu copy publicitário... ✍️");
+        generatingTextMessageIdRef.current = messageId;
+        
+        // Enviar apenas a solicitação do usuário, o histórico já contém o contexto completo
+        await sendChatMessage({
+          message: content,
+          conversationHistory: messagesWithContext,
+        });
+      } else if (activeFlow && isFlowComplete() && generatedImageUrl && actionConfig?.isImageGeneration) {
+        // Solicitar modificação de imagem gerada
+        addUserMessage(content);
+        
+        // Obter estado atual do store para pegar a descrição existente
+        const currentState = useConversationFlowStore.getState();
+        const existingDescription = currentState.responses.description || "";
+        
+        // Atualizar a resposta "description" com a modificação solicitada
+        // Se já existe uma description, adiciona a modificação. Se não, cria uma nova.
+        const updatedDescription = existingDescription 
+          ? `${existingDescription}. ${content}`
+          : content;
+        
+        // Adicionar/atualizar a resposta de descrição
+        addResponse("description", updatedDescription);
+        
+        setGenerating(true);
+        addSystemMessage("Gerando nova imagem com as modificações... 🎨");
+        
+        // Gerar nova imagem com o prompt atualizado
+        await generateImage();
       } else {
         // Conversa normal
         sendMessage(content);
       }
     },
-    [activeFlow, isFlowComplete, processFlowResponse, sendMessage]
+    [activeFlow, isFlowComplete, processFlowResponse, sendMessage, actionConfig, addUserMessage, addAssistantMessage, sendChatMessage, setGenerating, messages, generatedImageUrl, addResponse, addSystemMessage, generateImage]
   );
 
   // Handler para nova geração
@@ -194,12 +342,26 @@ export function ChatSection({
 
   // Placeholder dinâmico baseado no fluxo
   const getPlaceholder = () => {
-    if (activeFlow && !isFlowComplete()) {
-      const options = getCurrentOptions();
-      if (options) {
-        return `Digite ${options.join(" ou ")}...`;
+    if (activeFlow && actionConfig) {
+      // Se o fluxo está completo e não está gerando
+      if (isFlowComplete() && !isGenerating) {
+        if (actionConfig.workType === "copy-writing") {
+          return "Solicite modificações no texto...";
+        }
+        return "Solicite modificações na imagem...";
       }
-      return "Descreva sua imagem...";
+      
+      // Durante o fluxo
+      if (!isFlowComplete()) {
+        const options = getCurrentOptions();
+        if (options) {
+          return `Digite ${options.join(" ou ")}...`;
+        }
+        if (actionConfig.workType === "copy-writing") {
+          return "Descreva o que você precisa...";
+        }
+        return "Descreva sua imagem...";
+      }
     }
     return "Digite sua mensagem...";
   };
@@ -208,14 +370,24 @@ export function ChatSection({
   // Para fluxo guiado: só mostra quando for a última pergunta (sem opções ou quando currentStep é o último)
   // Para conversa normal: mostra quando showInput é true
   // Para imagem gerada: sempre mostra para permitir modificações
+  // Para texto gerado: mostra após conclusão para permitir modificações
   const shouldShowInput = (() => {
     // Se há imagem gerada, sempre mostra
     if (generatedImageUrl !== null) return true;
 
     // Se está em fluxo guiado
     if (activeFlow && actionConfig) {
-      // Se o fluxo está completo, não mostra (vai gerar imagem)
-      if (isFlowComplete()) return false;
+      // Se o fluxo está completo
+      if (isFlowComplete()) {
+        // Se ainda está gerando, não mostra
+        if (isGenerating) return false;
+        
+        // Se é copy-writing e terminou de gerar, mostra para permitir modificações
+        if (actionConfig.workType === "copy-writing") return true;
+        
+        // Para outros tipos (como imagem), não mostra aqui (será mostrado pela condição de generatedImageUrl)
+        return false;
+      }
 
       // Verifica se a pergunta atual é a última (sem opções = pergunta de descrição)
       const currentQuestion = actionConfig.questions[currentStep];
@@ -246,16 +418,7 @@ export function ChatSection({
           }
         />
 
-        {/* Exibe imagem gerada */}
-        {generatedImageUrl && (
-          <div className="pb-4">
-            <GeneratedImage
-              imageUrl={generatedImageUrl}
-              isLoading={isGenerating}
-              actionLabel={actionConfig?.label}
-            />
-          </div>
-        )}
+        {/* Imagens agora são exibidas dentro do MessageList como mensagens persistidas */}
 
         {/* Skeleton durante geração - aparece quando há mensagem de geração ou isGenerating */}
         {shouldShowSkeleton && <ImageSkeleton />}

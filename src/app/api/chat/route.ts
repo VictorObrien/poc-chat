@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
         content: body.message,
       },
     ];
-
+    
     // Gerar stream de texto usando Vercel AI SDK
+    // O Vercel AI SDK suporta system messages automaticamente
     const result = await streamText({
-      model: openrouter(body.model || "openai/gpt-5-mini"),
+      model: openrouter(body.model || "openai/gpt-4o-mini"),
       messages: messages.map((msg) => ({
-        role: msg.role,
+        role: msg.role as "system" | "user" | "assistant",
         content: msg.content,
       })),
       temperature: body.temperature ?? 0.7,

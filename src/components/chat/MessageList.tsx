@@ -3,6 +3,7 @@
 import { ChatBubble } from "./ChatBubble";
 import { AssistantMessage } from "./AssistantMessage";
 import { SystemMessage } from "./SystemMessage";
+import { GeneratedImage } from "./GeneratedImage";
 
 export interface Message {
   id: string;
@@ -11,6 +12,7 @@ export interface Message {
   role?: "user" | "assistant" | "system";
   options?: string[]; // Opções para mensagens do sistema (ex: ["Story", "Post"])
   questionIndex?: number; // Índice da pergunta no fluxo (para identificar qual está ativa)
+  imageUrl?: string; // URL da imagem gerada (para mensagens com imagem)
 }
 
 interface MessageListProps {
@@ -57,6 +59,18 @@ export function MessageList({
 
         // Renderizar mensagens do assistente
         if (message.role === "assistant") {
+          // Se a mensagem tem imagem, renderiza o componente de imagem
+          if (message.imageUrl) {
+            return (
+              <div key={message.id} className="flex flex-col gap-2">
+                <GeneratedImage
+                  imageUrl={message.imageUrl}
+                  actionLabel={message.content || "Imagem"}
+                />
+              </div>
+            );
+          }
+          
           return (
             <AssistantMessage
               key={message.id}
