@@ -127,6 +127,7 @@ export interface QuickActionConfig {
   model?: string;
   questions: ConversationQuestion[];
   isImageGeneration: boolean;
+  workType?: "image-generation" | "copy-writing" | "video-generation" | "document-analysis" | "voice-to-text";
 }
 
 // Estado do fluxo de conversa

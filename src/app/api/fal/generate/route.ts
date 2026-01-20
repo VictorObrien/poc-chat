@@ -14,9 +14,10 @@ import {
 // Interface para requisição
 interface GenerateRequestBody {
   prompt: string;
-  actionType: QuickActionType;
+  actionType: QuickActionType | string; // Suporta tipos customizados
   tipoPublicacao?: string; // Para determinar dimensões no Instagram
   negativePrompt?: string;
+  model?: string; // Modelo opcional para ações customizadas
 }
 
 interface FalImageResult {
@@ -70,35 +71,39 @@ export async function POST(request: NextRequest) {
 
     const { prompt, actionType, tipoPublicacao, negativePrompt } = body;
 
-    // Obter modelo
-    const model = FAL_MODELS[actionType];
-    if (!model) {
-      return new Response(
-        JSON.stringify({
-          error: `Modelo não configurado para ação: ${actionType}`,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+    // Determinar modelo a usar
+    // Para ações customizadas, pode vir no body.model
+    // Para ações padrão, usa FAL_MODELS
+    let model: string;
+    const isCustomAction = actionType.startsWith("custom-");
+
+    if (isCustomAction) {
+      // Ação customizada - usar modelo fornecido ou padrão para imagens
+      model = body.model || "fal-ai/gpt-image-1.5";
+    } else {
+      // Ação padrão
+      model = FAL_MODELS[actionType as QuickActionType];
+      if (!model) {
+        return new Response(
+          JSON.stringify({
+            error: `Modelo não configurado para ação: ${actionType}`,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
     }
 
     // Obter dimensões baseado no tipo de publicação
-    const dimensions = getImageDimensions(actionType, tipoPublicacao);
+    // Para ações customizadas, usa dimensões padrão quadradas
+    const dimensions = isCustomAction
+      ? { width: 1024, height: 1024 }
+      : getImageDimensions(actionType as QuickActionType, tipoPublicacao);
 
     // Usar negative prompt fixo se não for fornecido
     const finalNegativePrompt = negativePrompt || NEGATIVE_PROMPT;
-
-    console.log("Gerando imagem com fal.ai:", {
-      model,
-      dimensions,
-      promptLength: prompt.length,
-      tipoPublicacao,
-    });
-
-    // Log do prompt completo para debug
-    console.log("Prompt completo:\n", prompt);
 
     // Preparar input baseado no modelo
     let input: Record<string, unknown>;

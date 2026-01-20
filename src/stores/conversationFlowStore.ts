@@ -12,8 +12,10 @@ import type {
 import { getQuickActionConfig } from "@/lib/types/fal";
 
 interface ConversationFlowActions {
-  // Inicia um novo fluxo de conversa
+  // Inicia um novo fluxo de conversa (ações padrão)
   startFlow: (type: QuickActionType) => void;
+  // Inicia um fluxo com configuração customizada
+  startCustomFlow: (config: QuickActionConfig) => void;
   // Adiciona uma resposta do usuário
   addResponse: (key: string, value: string) => void;
   // Avança para a próxima etapa
@@ -36,9 +38,16 @@ interface ConversationFlowActions {
   getBuiltPrompt: () => string;
 }
 
-type ConversationFlowStore = ConversationFlowState & ConversationFlowActions;
+// Extender o estado para suportar tipos customizados
+interface ExtendedConversationFlowState
+  extends Omit<ConversationFlowState, "activeFlow"> {
+  activeFlow: QuickActionType | string | null;
+}
 
-const initialState: ConversationFlowState = {
+type ConversationFlowStore = ExtendedConversationFlowState &
+  ConversationFlowActions;
+
+const initialState: ExtendedConversationFlowState = {
   activeFlow: null,
   actionConfig: null,
   responses: {},
@@ -52,6 +61,7 @@ export const useConversationFlowStore = create<ConversationFlowStore>(
   (set, get) => ({
     ...initialState,
 
+    // Iniciar fluxo com ação padrão
     startFlow: (type: QuickActionType) => {
       const config = getQuickActionConfig(type);
       if (!config || !config.isImageGeneration) {
@@ -60,6 +70,21 @@ export const useConversationFlowStore = create<ConversationFlowStore>(
 
       set({
         activeFlow: type,
+        actionConfig: config,
+        responses: {},
+        currentStep: 0,
+        isGenerating: false,
+        generatedImageUrl: null,
+        error: null,
+      });
+    },
+
+    // Iniciar fluxo com configuração customizada
+    startCustomFlow: (config: QuickActionConfig) => {
+      if (!config) return;
+
+      set({
+        activeFlow: config.type,
         actionConfig: config,
         responses: {},
         currentStep: 0,
@@ -123,8 +148,9 @@ export const useConversationFlowStore = create<ConversationFlowStore>(
     },
 
     getBuiltPrompt: () => {
-      const { activeFlow, responses } = get();
+      const { activeFlow, responses, actionConfig } = get();
 
+      // Fluxos padrão
       if (activeFlow === "instagram-image") {
         const format = responses.format?.toLowerCase() || "post";
         const description = responses.description || "";
@@ -134,6 +160,24 @@ export const useConversationFlowStore = create<ConversationFlowStore>(
       if (activeFlow === "tiktok-image") {
         const description = responses.description || "";
         return `Thumbnail para vídeo do TikTok: ${description}`;
+      }
+
+      // Fluxos customizados - construir prompt baseado nas respostas
+      if (activeFlow?.startsWith("custom-") && actionConfig) {
+        const parts: string[] = [];
+
+        // Adicionar label da ação
+        parts.push(`${actionConfig.label}:`);
+
+        // Adicionar cada resposta
+        actionConfig.questions.forEach((q) => {
+          const response = responses[q.key];
+          if (response) {
+            parts.push(`${q.question} ${response}`);
+          }
+        });
+
+        return parts.join(" ");
       }
 
       return responses.description || "";
